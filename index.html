@@ -3,8 +3,7 @@
 
 <head>
 	<meta charset="utf-8">
-	<meta name=viewport
-		content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,minimal-ui">
+	<meta name=viewport content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,minimal-ui">
 	<meta name="referrer" content="no-referrer">
 	<link rel="icon" type="image/png" sizes="32x32" href="favicon.ico" />
 	<title>1cloud - player</title>
@@ -29,242 +28,210 @@
 
 <body>
 
+	<video id="video_player" width="100%" autoplay muted controls></video>
 
-	<video id="video_player" width="100%" autoplay="true" muted="false" controls></video>
+    <script type="text/javascript" src="js/jquery-1.10.2.min.js"></script>
+    <script type="text/javascript" src="js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="js/mpegts-1.7.2.min.js"></script>
+    <script type="text/javascript" src="js/hls-0.14.17.min.js"></script>
+    <script type="text/javascript" src="js/dash-v4.5.1.all.min.js"></script>
+    <script type="text/javascript" src="js/json2.js"></script>
+    <script type="text/javascript" src="js/srs.page.js"></script>
+    <script type="text/javascript" src="js/winlin.utility.js"></script>
+	<script type="text/javascript">
+
+		var flvPlayer = null;
+		var tsPlayer = null;
+		var hlsPlayer = null;
+		var dashPlayer = null;
+
+		var stopPlayers = function () {
+			if (flvPlayer) {
+				flvPlayer.destroy();
+				flvPlayer = null;
+			}
+			if (tsPlayer) {
+				tsPlayer.destroy();
+				tsPlayer = null;
+			}
+			if (hlsPlayer) {
+				hlsPlayer.destroy();
+				hlsPlayer = null;
+			}
+			if (dashPlayer) {
+				dashPlayer.destroy();
+				dashPlayer = null;
+			}
+		};
+
+		var hide_for_error = function () {
+			console.log('Error: unable to play the video.');
+			$('#main_flash_alert').show();
+			$('#main_info').hide();
+			$('#main_tips').hide();
+			$('#video_player').hide();
+			$('#audio_player').hide();
+
+			stopPlayers();
+		};
+
+		var show_for_video_ok = function () {
+			$('#main_flash_alert').hide();
+			$('#main_info').show();
+			$('#main_tips').show();
+			$('#video_player').show();
+			$('#audio_player').hide();
+		};
+
+		var show_for_audio_ok = function () {
+			$('#main_flash_alert').hide();
+			$('#main_info').show();
+			$('#main_tips').show();
+			$('#video_player').hide();
+			$('#audio_player').show();
+		};
+
+		var apply_url_change = function (rr) {
+			var r = parse_rtmp_url(rr);
+			var url = window.location.protocol + "//" + query.host + query.pathname + "?autostart=true"
+				+ "&app=" + r.app + "&stream=" + r.stream + "&server=" + r.server + "&port=" + r.port;
+			url += (query.shp_identify) ? "&shp_identify=" + query.shp_identify : '';
+			url += (r.vhost === "__defaultVhost__") ? "&vhost=" + r.server : "&vhost=" + r.vhost;
+			url += (r.schema !== "rtmp") ? "&schema=" + r.schema : '';
+			url += (query.buffer) ? "&buffer=" + query.buffer : '';
+			url += (query.api_port) ? "&api_port=" + query.api_port : '';
+
+			var queries = user_extra_params(query);
+			queries = user_extra_params(r, queries);
+
+			if (queries && queries.length) {
+				url += '&' + queries.join('&');
+			}
+
+			if (r.schema === 'rtmp') {
+				hide_for_error();
+				return;
+			}
+
+			return r;
+		};
+
+		var start_play = function (r) {
+			stopPlayers();
+			if (!r) return;
+
+			if (r.stream.indexOf('.mp3') > 0 || r.stream.indexOf('.aac') > 0) {
+				$('#audio_player').attr('src', r.url).show();
+				show_for_audio_ok();
+				return;
+			}
+
+			if (r.stream.indexOf('.mp4') > 0) {
+				$('#video_player').attr('src', r.url).show();
+				show_for_video_ok();
+				return;
+			}
+
+			if (r.stream.indexOf('.ts') > 0) {
+				if (!mpegts.getFeatureList().mseLivePlayback) {
+					hide_for_error();
+					return;
+				}
+
+				show_for_video_ok();
+
+				tsPlayer = mpegts.createPlayer({ type: 'mpegts', url: r.url, isLive: true });
+				tsPlayer.attachMediaElement(document.getElementById('video_player'));
+				tsPlayer.load();
+				tsPlayer.play();
+				return;
+			}
+
+			if (r.stream.indexOf('.m3u8') > 0) {
+				if (!Hls.isSupported()) {
+					hide_for_error();
+					return;
+				}
+
+				show_for_video_ok();
+
+				hlsPlayer = new Hls();
+				hlsPlayer.loadSource(r.url);
+				hlsPlayer.attachMedia(document.getElementById('video_player'));
+				return;
+			}
+
+			if (r.stream.indexOf('.mpd') > 0) {
+				show_for_video_ok();
+
+				dashPlayer = dashjs.MediaPlayer().create();
+				dashPlayer.initialize(document.querySelector("#video_player"), r.url, true);
+				return;
+			}
+
+			let isFlv = r.stream.indexOf('.flv') > 0;
+			isFlv = isFlv || r.stream && r.url.indexOf('http') === 0;
+			if (isFlv) {
+				if (!mpegts.getFeatureList().mseLivePlayback) {
+					hide_for_error();
+					return;
+				}
+
+				show_for_video_ok();
+
+				flvPlayer = mpegts.createPlayer({ type: 'flv', url: r.url, isLive: true });
+				flvPlayer.attachMediaElement(document.getElementById('video_player'));
+				flvPlayer.load();
+				flvPlayer.play();
+				return;
+			}
+
+			console.error('Unsupported URL', r.url, r);
+			$('#video_player').hide();
+			$('#audio_player').hide();
+		};
+
+		var query = parse_query_string();
+		srs_init_flv("#txt_url");
+
+		if (query.autostart === "true") {
+			$('#video_player').prop('muted', true);
+			console.warn('For autostart, we should mute it.');
+
+			var r = apply_url_change();
+			start_play(r);
+		} else {
+			$('#video_player').hide();
+			$('#audio_player').hide();
+		}
+	</script>
+	<script type="text/javascript">
+
+		let params = {};
+
+		if (window.URLSearchParams) {
+			const searchParams = new URLSearchParams(window.location.search);
+			const key = 'url';
+			params[key] = searchParams.get(key);
+		} else {
+			const key = 'url';
+			const queryString = window.location.search.substring(1);
+			const pair = queryString.split('&').find((p) => p.startsWith(`${key}=`));
+
+			if (pair) {
+				params[key] = pair.split('=')[1];
+			}
+		}
+
+		if (params.url) {
+			$('#video_player').prop('muted', false);
+			$('#audio_player').prop('muted', false);
+			var r = apply_url_change(params.url);
+			start_play(r);
+		}
+
+	</script>
 
 </body>
-<script type="text/javascript" src="js/hls.js"></script>
-<script type="text/javascript" src="js/mpegts.js"></script>
-<script type="text/javascript" src="js/dash.js"></script>
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script type="text/javascript">
-	var flvPlayer = null;
-	var tsPlayer = null;
-	var hlsPlayer = null;
-	var dashPlayer = null;
-
-	var stopPlayers = function () {
-		if (flvPlayer) {
-			flvPlayer.destroy();
-			flvPlayer = null;
-		}
-		if (tsPlayer) {
-			tsPlayer.destroy();
-			tsPlayer = null;
-		}
-		if (hlsPlayer) {
-			hlsPlayer.destroy();
-			hlsPlayer = null;
-		}
-		if (dashPlayer) {
-			dashPlayer.destroy();
-			dashPlayer = null;
-		}
-	};
-
-	var hide_for_error = function () {
-		$('#main_flash_alert').show();
-		$('#main_info').hide();
-		$('#main_tips').hide();
-		$('#video_player').hide();
-		$('#audio_player').hide();
-		//$('#btn_play').hide();
-
-		stopPlayers();
-	};
-
-	var show_for_video_ok = function () {
-		$('#main_flash_alert').hide();
-		$('#main_info').show();
-		$('#main_tips').show();
-		$('#video_player').show();
-		$('#audio_player').hide();
-		//$('#btn_play').show();
-	};
-
-	var show_for_audio_ok = function () {
-		$('#main_flash_alert').hide();
-		$('#main_info').show();
-		$('#main_tips').show();
-		$('#video_player').hide();
-		$('#audio_player').show();
-		//$('#btn_play').show();
-	};
-
-	var apply_url_change = function (rr) {
-		var r = parse_rtmp_url(rr);
-		var url = window.location.protocol + "//" + query.host + query.pathname + "?autostart=true"
-			+ "&app=" + r.app + "&stream=" + r.stream + "&server=" + r.server + "&port=" + r.port;
-		url += (query.shp_identify) ? "&shp_identify=" + query.shp_identify : '';
-		url += (r.vhost === "__defaultVhost__") ? "&vhost=" + r.server : "&vhost=" + r.vhost;
-		url += (r.schema !== "rtmp") ? "&schema=" + r.schema : '';
-		url += (query.buffer) ? "&buffer=" + query.buffer : '';
-		url += (query.api_port) ? "&api_port=" + query.api_port : '';
-
-		var queries = user_extra_params(query);
-		queries = user_extra_params(r, queries);
-
-		if (queries && queries.length) {
-			url += '&' + queries.join('&');
-		}
-		// $("#player_url").text($("#txt_url").val()).attr("href", url);
-		// $("#link_url").attr("href", url);
-
-		// For RTMP, not support.
-		if (r.schema === 'rtmp') {
-			hide_for_error();
-			return;
-		}
-
-		return r;
-	};
-
-	var start_play = function (r) {
-		stopPlayers();
-		if (!r) return;
-
-		// Use H5 native to play aac/mp3.
-		if (r.stream.indexOf('.mp3') > 0 || r.stream.indexOf('.aac') > 0) {
-			$('#audio_player').attr('src', r.url).show();
-			show_for_audio_ok();
-			return;
-		}
-
-		// Use H5 native to play mp4.
-		if (r.stream.indexOf('.mp4') > 0) {
-			$('#video_player').attr('src', r.url).show();
-			show_for_video_ok();
-			return;
-		}
-
-		// Start play HTTP-TS.
-		if (r.stream.indexOf('.ts') > 0) {
-			if (!mpegts.getFeatureList().mseLivePlayback) {
-				hide_for_error();
-				return;
-			}
-
-			show_for_video_ok();
-
-			tsPlayer = mpegts.createPlayer({ type: 'mpegts', url: r.url, isLive: true });
-			tsPlayer.attachMediaElement(document.getElementById('video_player'));
-			tsPlayer.load();
-			tsPlayer.play();
-			return;
-		}
-
-		// Start play HLS.
-		if (r.stream.indexOf('.m3u8') > 0) {
-			if (!Hls.isSupported()) {
-				hide_for_error();
-				return;
-			}
-
-			show_for_video_ok();
-
-			hlsPlayer = new Hls();
-			hlsPlayer.loadSource(r.url);
-			hlsPlayer.attachMedia(document.getElementById('video_player'));
-			return;
-		}
-
-		// Start play MPEG-DASH.
-		if (r.stream.indexOf('.mpd') > 0) {
-			show_for_video_ok();
-
-			dashPlayer = dashjs.MediaPlayer().create();
-			dashPlayer.initialize(document.querySelector("#video_player"), r.url, true);
-			return;
-		}
-
-		// Start play HTTP-FLV.
-		let isFlv = r.stream.indexOf('.flv') > 0;
-		// Compatible with NGINX-HTTP-FLV module, see https://github.com/winshining/nginx-http-flv-module and the stream
-		// url without .flv, such as:
-		//          http://localhost:8080/live?app=live&stream=livestream
-		isFlv = isFlv || r.stream && r.url.indexOf('http') === 0;
-		if (isFlv) {
-			if (!mpegts.getFeatureList().mseLivePlayback) {
-				hide_for_error();
-				return;
-			}
-
-			show_for_video_ok();
-
-			flvPlayer = mpegts.createPlayer({ type: 'flv', url: r.url, isLive: true });
-			flvPlayer.attachMediaElement(document.getElementById('video_player'));
-			flvPlayer.load();
-			flvPlayer.play();
-			return;
-		}
-
-		console.error('不支持的URL', r.url, r);
-		$('#video_player').hide();
-		$('#audio_player').hide();
-	};
-
-
-	/****
-	 * The parameters for this page:
-	 *       schema, the protocol schema, rtmp or http.
-	 *       server, the ip of the url.
-	 *       port, the rtmp port of url.
-	 *       vhost, the vhost of url, can equals to server.
-	 *       app, the app of url.
-	 *       stream, the stream of url, can endwith .flv or .mp4 or nothing for RTMP.
-	 *       autostart, whether auto play the stream.
-	 *       buffer, the buffer time in seconds.
-	 * extra params:
-	 *       shp_identify, hls+ param.
-	 * for example:
-	 *       http://localhost:8088/players/srs_player.html?vhost=ossrs.net&app=live&stream=livestream&server=ossrs.net&port=1935&autostart=true&schema=rtmp
-	 *       http://localhost:8088/players/srs_player.html?vhost=ossrs.net&app=live&stream=livestream.flv&server=ossrs.net&port=8080&autostart=true&schema=http
-	 */
-	var query = parse_query_string();
-
-	// get the vhost and port to set the default url.
-	// url set to: http://localhost:8080/live/livestream.flv
-	srs_init_flv("#txt_url");
-
-	if (query.autostart === "true") {
-		// Note that only need to mute video player, because audio player is impossible to autostart whatever muted or
-		// not, however you can preload the audio stream by setting the src of audio, see https://developer.mozilla.org/en-US/docs/Web/Media/Autoplay_guide#example_allowing_autoplay_and_fullscreen_mode
-		$('#video_player').prop('muted', true);
-		console.warn('For autostart, we should mute it, see https://www.jianshu.com/p/c3c6944eed5a ' +
-			'or https://developers.google.com/web/updates/2017/09/autoplay-policy-changes#audiovideo_elements');
-
-		var r = apply_url_change();
-		start_play(r);
-	} else {
-		$('#video_player').hide();
-		$('#audio_player').hide();
-	}
-</script>
-<script type="text/javascript">
-
-	let params = {};
-
-	if (window.URLSearchParams) {
-		const searchParams = new URLSearchParams(window.location.search);
-		const key = 'url';
-		params[key] = searchParams.get(key);
-	} else {
-		const key = 'url';
-		const queryString = window.location.search.substring(1);
-		const pair = queryString.split('&').find((p) => p.startsWith(`${key}=`));
-
-		if (pair) {
-			params[key] = pair.split('=')[1];
-		}
-	}
-
-	if (params.url) {
-		$('#video_player').prop('muted', false);
-		$('#audio_player').prop('muted', false);
-		var r = apply_url_change(params.url);
-		start_play(r);
-	}
-
-</script>
 
 </html>
