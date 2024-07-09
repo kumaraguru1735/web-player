@@ -80,6 +80,17 @@
             justify-content: center;
             margin-right: 10px;
         }
+        #pipButton {
+            background-color: rgba(0, 0, 0, 0.5);
+            border: none;
+            color: white;
+            padding: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+        }
 
         .material-icons {
             font-size: 24px;
@@ -106,6 +117,9 @@
                 <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1">
             </div>
             <div id="right-controls">
+                <button id="pipButton">
+                    <i class="material-icons" id="pipIcon">picture_in_picture_alt</i>
+                </button>
                 <button id="fullscreenButton">
                     <i class="material-icons" id="fullscreenIcon">fullscreen</i>
                 </button>
@@ -130,6 +144,8 @@
             var fullscreenButton = document.getElementById('fullscreenButton');
             var fullscreenIcon = document.getElementById('fullscreenIcon');
             var castButton = document.getElementById('castButton');
+            var pipButton = document.getElementById('pipButton');
+            var pipIcon = document.getElementById('pipIcon');
 
             var hls = new Hls();
             var urlParams = new URLSearchParams(window.location.search);
@@ -198,6 +214,26 @@
                     document.getElementById('player-container').requestFullscreen();
                     fullscreenIcon.textContent = 'fullscreen_exit';
                 }
+            });
+
+            pipButton.addEventListener('click', function () {
+                if (document.pictureInPictureElement) {
+                    document.exitPictureInPicture();
+                    pipIcon.textContent = 'picture_in_picture_alt';
+                } else {
+                    video.requestPictureInPicture().catch(error => {
+                        console.error('Failed to enter Picture-in-Picture mode', error);
+                    });
+                    pipIcon.textContent = 'picture_in_picture_exit';
+                }
+            });
+
+            video.addEventListener('enterpictureinpicture', function () {
+                pipIcon.textContent = 'picture_in_picture_exit';
+            });
+
+            video.addEventListener('leavepictureinpicture', function () {
+                pipIcon.textContent = 'picture_in_picture_alt';
             });
 
             castButton.addEventListener('click', function () {
