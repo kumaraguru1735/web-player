@@ -39,6 +39,8 @@
             background-color: rgba(0, 0, 0, 0.5);
             height: 5px;
             cursor: pointer;
+            display: flex;
+            align-items: center;
         }
 
         #progress {
@@ -69,17 +71,7 @@
         #playPauseButton,
         #muteUnmuteButton,
         #fullscreenButton,
-        #castButton {
-            background-color: rgba(0, 0, 0, 0.5);
-            border: none;
-            color: white;
-            padding: 10px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 10px;
-        }
+        #castButton,
         #pipButton {
             background-color: rgba(0, 0, 0, 0.5);
             border: none;
@@ -95,6 +87,13 @@
         .material-icons {
             font-size: 24px;
         }
+
+        #timeStart,
+        #timeEnd {
+            color: white;
+            font-size: 14px;
+            padding: 5px;
+        }
     </style>
 </head>
 
@@ -102,11 +101,11 @@
 
     <div id="player-container">
         <video id="video_player"></video>
-
         <div id="controls">
             <div id="progressBarContainer">
                 <div id="progress"></div>
             </div>
+
             <div id="left-controls">
                 <button id="playPauseButton">
                     <i class="material-icons" id="playPauseIcon">play_arrow</i>
@@ -115,6 +114,10 @@
                     <i class="material-icons" id="muteUnmuteIcon">volume_up</i>
                 </button>
                 <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1">
+                
+            <div>
+                <span id="timeStart">0:00</span><a style="color: white;">/</a><span id="timeEnd">0:00</span>
+            </div>
             </div>
             <div id="right-controls">
                 <button id="pipButton">
@@ -146,6 +149,8 @@
             var castButton = document.getElementById('castButton');
             var pipButton = document.getElementById('pipButton');
             var pipIcon = document.getElementById('pipIcon');
+            var timeStart = document.getElementById('timeStart');
+            var timeEnd = document.getElementById('timeEnd');
 
             var hls = new Hls();
             var urlParams = new URLSearchParams(window.location.search);
@@ -155,6 +160,7 @@
                 hls.attachMedia(video);
                 hls.on(Hls.Events.MANIFEST_PARSED, function () {
                     video.play();
+                    updateEndTime();
                 });
             }
 
@@ -171,7 +177,7 @@
             muteUnmuteButton.addEventListener('click', function () {
                 if (video.muted) {
                     video.muted = false;
-                    volumeSlider.value = 100;
+                    volumeSlider.value = video.volume;
                     muteUnmuteIcon.textContent = 'volume_up';
                 } else {
                     video.muted = true;
@@ -182,11 +188,19 @@
 
             volumeSlider.addEventListener('input', function () {
                 video.volume = volumeSlider.value;
+                if (video.volume === 0) {
+                    video.muted = true;
+                    muteUnmuteIcon.textContent = 'volume_off';
+                } else {
+                    video.muted = false;
+                    muteUnmuteIcon.textContent = 'volume_up';
+                }
             });
 
             video.addEventListener('timeupdate', function () {
                 var percentage = (video.currentTime / video.duration) * 100;
                 progress.style.width = percentage + '%';
+                updateStartTime();
             });
 
             progressBarContainer.addEventListener('click', function (e) {
@@ -216,6 +230,11 @@
                 }
             });
 
+            castButton.addEventListener('click', function () {
+                // Implement cast functionality here
+                console.log('Cast button clicked');
+            });
+
             pipButton.addEventListener('click', function () {
                 if (document.pictureInPictureElement) {
                     document.exitPictureInPicture();
@@ -236,10 +255,19 @@
                 pipIcon.textContent = 'picture_in_picture_alt';
             });
 
-            castButton.addEventListener('click', function () {
-                // Implement cast functionality here
-                console.log('Cast button clicked');
-            });
+            function updateStartTime() {
+                timeStart.textContent = formatTime(video.currentTime);
+            }
+
+            function updateEndTime() {
+                timeEnd.textContent = formatTime(video.duration);
+            }
+
+            function formatTime(seconds) {
+                const minutes = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
+            }
         };
     </script>
 
