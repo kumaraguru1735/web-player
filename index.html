@@ -38,17 +38,18 @@
                 <button id="pipButton">
                     <i class="material-icons" id="pipIcon">picture_in_picture_alt</i>
                 </button>
-                <button id="fullscreenButton">
-                    <i class="material-icons" id="fullscreenIcon">fullscreen</i>
-                </button>
                 <button id="castButton">
                     <i class="material-icons">cast</i>
+                </button>
+                <button id="fullscreenButton">
+                    <i class="material-icons" id="fullscreenIcon">fullscreen</i>
                 </button>
             </div>
         </div>
     </div>
 
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script type="text/javascript" src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
     <script type="text/javascript">
         window.onload = function () {
             var video = document.getElementById('video_player');
@@ -145,10 +146,35 @@
                 }
             });
 
+            // Cast functionality
             castButton.addEventListener('click', function () {
-                // Implement cast functionality here
-                console.log('Cast button clicked');
+                if (!cast.framework.CastContext.getInstance().getCurrentSession()) {
+                    cast.framework.CastContext.getInstance().requestSession();
+                } else {
+                    cast.framework.CastContext.getInstance().getCurrentSession().endSession(true);
+                }
             });
+
+            var context = cast.framework.CastContext.getInstance();
+            context.setOptions({
+                receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
+                autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
+            });
+
+            var player = new cast.framework.RemotePlayer();
+            var playerController = new cast.framework.RemotePlayerController(player);
+
+            playerController.addEventListener(cast.framework.RemotePlayerEventType.IS_CONNECTED_CHANGED, function () {
+                if (player.isConnected) {
+                    var mediaInfo = new chrome.cast.media.MediaInfo(videoUrl, 'application/x-mpegurl');
+                    var request = new chrome.cast.media.LoadRequest(mediaInfo);
+                    context.getCurrentSession().loadMedia(request).then(
+                        function () { console.log('Load succeed'); },
+                        function (errorCode) { console.log('Error code: ' + errorCode); });
+                }
+            });
+
+            // Picture in Picture functionality
 
             pipButton.addEventListener('click', function () {
                 if (document.pictureInPictureElement) {
