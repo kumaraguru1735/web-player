@@ -91,6 +91,12 @@
 
             playPauseButton.addEventListener('click', togglePlayPause);
             video.addEventListener('click', togglePlayPause);
+            document.addEventListener('keydown', function (e) {
+                if (e.code === 'Space') {
+                    e.preventDefault();
+                    togglePlayPause();
+                }
+            });
 
             muteUnmuteButton.addEventListener('click', function () {
                 if (video.muted) {
