@@ -2,235 +2,210 @@
 <html>
 
 <head>
-	<meta charset="utf-8">
-	<meta name=viewport content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,minimal-ui">
-	<meta name="referrer" content="no-referrer">
-	<link rel="icon" type="image/png" sizes="32x32" href="favicon.ico" />
-	<title>1cloud - player</title>
-	<style type="text/css">
-		html,
-		body {
-			width: 100%;
-			height: 100%;
-			margin: auto;
-			overflow: hidden;
-		}
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+    <meta name="referrer" content="no-referrer">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon.ico" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <title>Custom Video Player</title>
+    <style type="text/css">
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            background-color: black;
+        }
 
-		body {
-			display: flex;
-		}
+        #player-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
 
-		#mse {
-			flex: auto;
-		}
-	</style>
+        #video_player {
+            width: 100%;
+            height: 100%;
+        }
+
+        #progressBarContainer {
+            position: absolute;
+            top: 0;
+            width: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            height: 5px;
+            cursor: pointer;
+        }
+
+        #progress {
+            background-color: red;
+            height: 100%;
+            width: 0;
+        }
+
+        #controls {
+            position: absolute;
+            bottom: 0px;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #left-controls {
+            display: flex;
+            align-items: center;
+        }
+
+        #right-controls {
+            display: flex;
+            align-items: center;
+        }
+
+        #playPauseButton,
+        #muteUnmuteButton,
+        #fullscreenButton,
+        #castButton {
+            background-color: rgba(0, 0, 0, 0.5);
+            border: none;
+            color: white;
+            padding: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+        }
+
+        .material-icons {
+            font-size: 24px;
+        }
+    </style>
 </head>
 
 <body>
 
-	<video id="video_player" width="100%" autoplay muted controls></video>
+    <div id="player-container">
+        <video id="video_player"></video>
 
-    <script type="text/javascript" src="js/jquery-1.10.2.min.js"></script>
-    <script type="text/javascript" src="js/bootstrap.min.js"></script>
-    <script type="text/javascript" src="js/mpegts-1.7.2.min.js"></script>
-    <script type="text/javascript" src="js/hls-0.14.17.min.js"></script>
-    <script type="text/javascript" src="js/dash-v4.5.1.all.min.js"></script>
-    <script type="text/javascript" src="js/json2.js"></script>
-    <script type="text/javascript" src="js/srs.page.js"></script>
-    <script type="text/javascript" src="js/winlin.utility.js"></script>
-	<script type="text/javascript">
+        <div id="controls">
+            <div id="progressBarContainer">
+                <div id="progress"></div>
+            </div>
+            <div id="left-controls">
+                <button id="playPauseButton">
+                    <i class="material-icons" id="playPauseIcon">play_arrow</i>
+                </button>
+                <button id="muteUnmuteButton">
+                    <i class="material-icons" id="muteUnmuteIcon">volume_up</i>
+                </button>
+                <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1">
+            </div>
+            <div id="right-controls">
+                <button id="fullscreenButton">
+                    <i class="material-icons" id="fullscreenIcon">fullscreen</i>
+                </button>
+                <button id="castButton">
+                    <i class="material-icons">cast</i>
+                </button>
+            </div>
+        </div>
+    </div>
 
-		var flvPlayer = null;
-		var tsPlayer = null;
-		var hlsPlayer = null;
-		var dashPlayer = null;
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script type="text/javascript">
+        window.onload = function () {
+            var video = document.getElementById('video_player');
+            var playPauseButton = document.getElementById('playPauseButton');
+            var playPauseIcon = document.getElementById('playPauseIcon');
+            var muteUnmuteButton = document.getElementById('muteUnmuteButton');
+            var muteUnmuteIcon = document.getElementById('muteUnmuteIcon');
+            var volumeSlider = document.getElementById('volumeSlider');
+            var progressBarContainer = document.getElementById('progressBarContainer');
+            var progress = document.getElementById('progress');
+            var fullscreenButton = document.getElementById('fullscreenButton');
+            var fullscreenIcon = document.getElementById('fullscreenIcon');
+            var castButton = document.getElementById('castButton');
 
-		var stopPlayers = function () {
-			if (flvPlayer) {
-				flvPlayer.destroy();
-				flvPlayer = null;
-			}
-			if (tsPlayer) {
-				tsPlayer.destroy();
-				tsPlayer = null;
-			}
-			if (hlsPlayer) {
-				hlsPlayer.destroy();
-				hlsPlayer = null;
-			}
-			if (dashPlayer) {
-				dashPlayer.destroy();
-				dashPlayer = null;
-			}
-		};
+            var hls = new Hls();
+            var urlParams = new URLSearchParams(window.location.search);
+            var videoUrl = urlParams.get('url');
+            if (Hls.isSupported()) {
+                hls.loadSource(videoUrl);
+                hls.attachMedia(video);
+                hls.on(Hls.Events.MANIFEST_PARSED, function () {
+                    video.play();
+                });
+            }
 
-		var hide_for_error = function () {
-			console.log('Error: unable to play the video.');
-			$('#main_flash_alert').show();
-			$('#main_info').hide();
-			$('#main_tips').hide();
-			$('#video_player').hide();
-			$('#audio_player').hide();
+            playPauseButton.addEventListener('click', function () {
+                if (video.paused) {
+                    video.play();
+                    playPauseIcon.textContent = 'pause';
+                } else {
+                    video.pause();
+                    playPauseIcon.textContent = 'play_arrow';
+                }
+            });
 
-			stopPlayers();
-		};
+            muteUnmuteButton.addEventListener('click', function () {
+                if (video.muted) {
+                    video.muted = false;
+                    volumeSlider.value = 100;
+                    muteUnmuteIcon.textContent = 'volume_up';
+                } else {
+                    video.muted = true;
+                    volumeSlider.value = 0;
+                    muteUnmuteIcon.textContent = 'volume_off';
+                }
+            });
 
-		var show_for_video_ok = function () {
-			$('#main_flash_alert').hide();
-			$('#main_info').show();
-			$('#main_tips').show();
-			$('#video_player').show();
-			$('#audio_player').hide();
-		};
+            volumeSlider.addEventListener('input', function () {
+                video.volume = volumeSlider.value;
+            });
 
-		var show_for_audio_ok = function () {
-			$('#main_flash_alert').hide();
-			$('#main_info').show();
-			$('#main_tips').show();
-			$('#video_player').hide();
-			$('#audio_player').show();
-		};
+            video.addEventListener('timeupdate', function () {
+                var percentage = (video.currentTime / video.duration) * 100;
+                progress.style.width = percentage + '%';
+            });
 
-		var apply_url_change = function (rr) {
-			var r = parse_rtmp_url(rr);
-			var url = window.location.protocol + "//" + query.host + query.pathname + "?autostart=true"
-				+ "&app=" + r.app + "&stream=" + r.stream + "&server=" + r.server + "&port=" + r.port;
-			url += (query.shp_identify) ? "&shp_identify=" + query.shp_identify : '';
-			url += (r.vhost === "__defaultVhost__") ? "&vhost=" + r.server : "&vhost=" + r.vhost;
-			url += (r.schema !== "rtmp") ? "&schema=" + r.schema : '';
-			url += (query.buffer) ? "&buffer=" + query.buffer : '';
-			url += (query.api_port) ? "&api_port=" + query.api_port : '';
+            progressBarContainer.addEventListener('click', function (e) {
+                var rect = progressBarContainer.getBoundingClientRect();
+                var offsetX = e.clientX - rect.left;
+                var percentage = offsetX / progressBarContainer.offsetWidth;
+                video.currentTime = percentage * video.duration;
+            });
 
-			var queries = user_extra_params(query);
-			queries = user_extra_params(r, queries);
+            fullscreenButton.addEventListener('click', function () {
+                if (document.fullscreenElement) {
+                    document.exitFullscreen();
+                    fullscreenIcon.textContent = 'fullscreen';
+                } else {
+                    document.getElementById('player-container').requestFullscreen();
+                    fullscreenIcon.textContent = 'fullscreen_exit';
+                }
+            });
 
-			if (queries && queries.length) {
-				url += '&' + queries.join('&');
-			}
+            video.addEventListener('dblclick', function () {
+                if (document.fullscreenElement) {
+                    document.exitFullscreen();
+                    fullscreenIcon.textContent = 'fullscreen';
+                } else {
+                    document.getElementById('player-container').requestFullscreen();
+                    fullscreenIcon.textContent = 'fullscreen_exit';
+                }
+            });
 
-			if (r.schema === 'rtmp') {
-				hide_for_error();
-				return;
-			}
-
-			return r;
-		};
-
-		var start_play = function (r) {
-			stopPlayers();
-			if (!r) return;
-
-			if (r.stream.indexOf('.mp3') > 0 || r.stream.indexOf('.aac') > 0) {
-				$('#audio_player').attr('src', r.url).show();
-				show_for_audio_ok();
-				return;
-			}
-
-			if (r.stream.indexOf('.mp4') > 0) {
-				$('#video_player').attr('src', r.url).show();
-				show_for_video_ok();
-				return;
-			}
-
-			if (r.stream.indexOf('.ts') > 0) {
-				if (!mpegts.getFeatureList().mseLivePlayback) {
-					hide_for_error();
-					return;
-				}
-
-				show_for_video_ok();
-
-				tsPlayer = mpegts.createPlayer({ type: 'mpegts', url: r.url, isLive: true });
-				tsPlayer.attachMediaElement(document.getElementById('video_player'));
-				tsPlayer.load();
-				tsPlayer.play();
-				return;
-			}
-
-			if (r.stream.indexOf('.m3u8') > 0) {
-				if (!Hls.isSupported()) {
-					hide_for_error();
-					return;
-				}
-
-				show_for_video_ok();
-
-				hlsPlayer = new Hls();
-				hlsPlayer.loadSource(r.url);
-				hlsPlayer.attachMedia(document.getElementById('video_player'));
-				return;
-			}
-
-			if (r.stream.indexOf('.mpd') > 0) {
-				show_for_video_ok();
-
-				dashPlayer = dashjs.MediaPlayer().create();
-				dashPlayer.initialize(document.querySelector("#video_player"), r.url, true);
-				return;
-			}
-
-			let isFlv = r.stream.indexOf('.flv') > 0;
-			isFlv = isFlv || r.stream && r.url.indexOf('http') === 0;
-			if (isFlv) {
-				if (!mpegts.getFeatureList().mseLivePlayback) {
-					hide_for_error();
-					return;
-				}
-
-				show_for_video_ok();
-
-				flvPlayer = mpegts.createPlayer({ type: 'flv', url: r.url, isLive: true });
-				flvPlayer.attachMediaElement(document.getElementById('video_player'));
-				flvPlayer.load();
-				flvPlayer.play();
-				return;
-			}
-
-			console.error('Unsupported URL', r.url, r);
-			$('#video_player').hide();
-			$('#audio_player').hide();
-		};
-
-		var query = parse_query_string();
-		srs_init_flv("#txt_url");
-
-		if (query.autostart === "true") {
-			$('#video_player').prop('muted', true);
-			console.warn('For autostart, we should mute it.');
-
-			var r = apply_url_change();
-			start_play(r);
-		} else {
-			$('#video_player').hide();
-			$('#audio_player').hide();
-		}
-	</script>
-	<script type="text/javascript">
-
-		let params = {};
-
-		if (window.URLSearchParams) {
-			const searchParams = new URLSearchParams(window.location.search);
-			const key = 'url';
-			params[key] = searchParams.get(key);
-		} else {
-			const key = 'url';
-			const queryString = window.location.search.substring(1);
-			const pair = queryString.split('&').find((p) => p.startsWith(`${key}=`));
-
-			if (pair) {
-				params[key] = pair.split('=')[1];
-			}
-		}
-
-		if (params.url) {
-			$('#video_player').prop('muted', false);
-			$('#audio_player').prop('muted', false);
-			var r = apply_url_change(params.url);
-			start_play(r);
-		}
-
-	</script>
+            castButton.addEventListener('click', function () {
+                // Implement cast functionality here
+                console.log('Cast button clicked');
+            });
+        };
+    </script>
 
 </body>
 
