@@ -9,7 +9,6 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     <title>Custom Video Player</title>
     <link rel="stylesheet" href="style.css">
-    
 </head>
 
 <body>
@@ -30,9 +29,9 @@
                 </button>
                 <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1">
                 
-            <div>
-                <span id="timeStart">0:00</span><a style="color: white;">/</a><span id="timeEnd">0:00</span>
-            </div>
+                <div>
+                    <span id="timeStart">0:00</span><a style="color: white;">/</a><span id="timeEnd">0:00</span>
+                </div>
             </div>
             <div id="right-controls">
                 <button id="pipButton">
@@ -80,7 +79,7 @@
                 });
             }
 
-            playPauseButton.addEventListener('click', function () {
+            function togglePlayPause() {
                 if (video.paused) {
                     video.play();
                     playPauseIcon.textContent = 'pause';
@@ -88,7 +87,10 @@
                     video.pause();
                     playPauseIcon.textContent = 'play_arrow';
                 }
-            });
+            }
+
+            playPauseButton.addEventListener('click', togglePlayPause);
+            video.addEventListener('click', togglePlayPause);
 
             muteUnmuteButton.addEventListener('click', function () {
                 if (video.muted) {
@@ -175,7 +177,6 @@
             });
 
             // Picture in Picture functionality
-
             pipButton.addEventListener('click', function () {
                 if (document.pictureInPictureElement) {
                     document.exitPictureInPicture();
